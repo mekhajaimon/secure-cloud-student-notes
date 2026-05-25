@@ -7,8 +7,8 @@ app.secret_key = 'studentnotesproject'
 
 # MySQL Configuration
 app.config['MYSQL_HOST'] = 'localhost'
-app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = 'mekha@2005'
+app.config['MYSQL_USER'] = 'mekha'
+app.config['MYSQL_PASSWORD'] = 'mekha123'
 app.config['MYSQL_DB'] = 'student_notes_db'
 
 mysql = MySQL(app)
@@ -206,4 +206,4 @@ def logout():
     return redirect('/login')
     
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
