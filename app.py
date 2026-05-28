@@ -1,17 +1,11 @@
-from flask import Flask, render_template, request, redirect, flash, session
-from flask_mysqldb import MySQL
-from werkzeug.security import generate_password_hash, check_password_hash
+
+from flask import Flask, render_template, request, redirect, session, flash
 
 app = Flask(__name__)
-app.secret_key = 'studentnotesproject'
+app.secret_key = 'studentnotessecret'
 
-# MySQL Configuration
-app.config['MYSQL_HOST'] = 'localhost'
-app.config['MYSQL_USER'] = 'mekha'
-app.config['MYSQL_PASSWORD'] = 'mekha123'
-app.config['MYSQL_DB'] = 'student_notes_db'
-
-mysql = MySQL(app)
+# Temporary notes storage
+notes_data = []
 
 # Home Page
 @app.route('/')
@@ -24,31 +18,12 @@ def login():
 
     if request.method == 'POST':
 
-        email = request.form['email']
-        password = request.form['password']
+        session['loggedin'] = True
+        session['email'] = request.form['email']
 
-        cur = mysql.connection.cursor()
+        flash('Login Successful!')
 
-        cur.execute(
-            "SELECT * FROM users WHERE email=%s",
-            (email,)
-        )
-
-        user = cur.fetchone()
-
-        cur.close()
-
-        if user and check_password_hash(user[3], password):
-
-            session['loggedin'] = True
-            session['email'] = user[2]
-
-            flash('Login Successful!')
-
-            return redirect('/dashboard')
-
-        else:
-             return "Invalid Email or Password"
+        return redirect('/dashboard')
 
     return render_template('login.html')
 
@@ -58,26 +33,13 @@ def register():
 
     if request.method == 'POST':
 
-        fullname = request.form['fullname']
-        email = request.form['email']
-        password = request.form['password']
-        hashed_password = generate_password_hash(password)
+        flash('Registration Successful! Please Login.')
 
-        cur = mysql.connection.cursor()
-
-        cur.execute(
-            "INSERT INTO users(fullname, email, password) VALUES(%s, %s, %s)",
-            (fullname, email, hashed_password)
-        )
-
-        mysql.connection.commit()
-
-        cur.close()
-
-        return render_template('success.html')
+        return redirect('/login')
 
     return render_template('register.html')
-#dashboard
+
+# Dashboard
 @app.route('/dashboard')
 def dashboard():
 
@@ -86,115 +48,63 @@ def dashboard():
 
     return redirect('/login')
 
- #add note   
+# Add Note
 @app.route('/add_note', methods=['GET', 'POST'])
 def add_note():
 
-    if 'loggedin' not in session:
-        return redirect('/login')
-
     if request.method == 'POST':
 
         title = request.form['title']
         content = request.form['content']
-        user_email = session['email']
 
-        cur = mysql.connection.cursor()
+        notes_data.append({
+            'title': title,
+            'content': content
+        })
 
-        cur.execute(
-            "INSERT INTO notes(title, content, user_email) VALUES(%s, %s, %s)",
-            (title, content, user_email)
-        )
+        flash('Note Added Successfully!')
 
-        mysql.connection.commit()
-
-        cur.close()
-
-        flash('Note Saved Successfully!')
-
-        return redirect('/add_note')
+        return redirect('/view_notes')
 
     return render_template('add_note.html')
 
-#view note
+# View Notes
 @app.route('/view_notes')
 def view_notes():
 
-    if 'loggedin' not in session:
-        return redirect('/login')
-
-    user_email = session['email']
-
-    cur = mysql.connection.cursor()
-
-    cur.execute(
-        "SELECT * FROM notes WHERE user_email=%s",
-        (user_email,)
+    return render_template(
+        'view_notes.html',
+        notes=notes_data
     )
 
-    notes = cur.fetchall()
-
-    cur.close()
-
-    return render_template('view_notes.html', notes=notes)
-
-    cur = mysql.connection.cursor()
-
-    cur.execute("SELECT * FROM notes")
-
-    notes = cur.fetchall()
-
-    cur.close()
-
-    return render_template('view_notes.html', notes=notes)
-
-#delete_note
-@app.route('/delete_note/<int:id>')
-def delete_note(id):
-
-    cur = mysql.connection.cursor()
-
-    cur.execute("DELETE FROM notes WHERE id=%s", (id,))
-
-    mysql.connection.commit()
-
-    cur.close()
-
-    flash('Note Deleted Successfully!')
-
-    return redirect('/view_notes')
-
-#edit_note
-@app.route('/edit_note/<int:id>', methods=['GET', 'POST'])
-def edit_note(id):
-
-    cur = mysql.connection.cursor()
+# Edit Note
+@app.route('/edit_note/<int:index>', methods=['GET', 'POST'])
+def edit_note(index):
 
     if request.method == 'POST':
 
-        title = request.form['title']
-        content = request.form['content']
-
-        cur.execute(
-            "UPDATE notes SET title=%s, content=%s WHERE id=%s",
-            (title, content, id)
-        )
-
-        mysql.connection.commit()
+        notes_data[index]['title'] = request.form['title']
+        notes_data[index]['content'] = request.form['content']
 
         flash('Note Updated Successfully!')
 
         return redirect('/view_notes')
 
-    cur.execute("SELECT * FROM notes WHERE id=%s", (id,))
+    note = notes_data[index]
 
-    note = cur.fetchone()
+    return render_template('edit_note.html', note=note, index=index)
 
-    cur.close()
+# Delete Note
+@app.route('/delete_note/<int:index>')
+def delete_note(index):
 
-    return render_template('edit_note.html', note=note)
+    notes_data.pop(index)
 
-#logout
+    flash('Note Deleted Successfully!')
+
+    return redirect('/view_notes')
+
+# Logout
 @app.route('/logout')
 def logout():
 
@@ -204,6 +114,6 @@ def logout():
     flash('Logged Out Successfully!')
 
     return redirect('/login')
-    
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
