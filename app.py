@@ -104,7 +104,24 @@ def dashboard():
         return render_template('dashboard.html')
 
     return redirect('/login')
+#admin
+@app.route('/admin')
+def admin():
 
+    cur = mysql.connection.cursor()
+
+    cur.execute("SELECT COUNT(*) FROM users")
+    total_users = cur.fetchone()[0]
+
+    cur.close()
+
+    total_notes = len(notes_data)
+
+    return render_template(
+        'admin.html',
+        total_users=total_users,
+        total_notes=total_notes
+    )
 # Add Note
 @app.route('/add_note', methods=['GET', 'POST'])
 def add_note():
